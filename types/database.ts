@@ -112,6 +112,13 @@ export interface CommentWithAuthor extends Comment {
   display_name: string;
 }
 
+export interface Follow {
+  id: string;
+  follower_id: string;
+  following_id: string;
+  created_at: string;
+}
+
 export const VALIDATION = {
   username: {
     minLength: 3,

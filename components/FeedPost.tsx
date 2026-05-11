@@ -25,6 +25,8 @@ export function FeedPost({ post, userId }: FeedPostProps) {
   const [likeCount, setLikeCount] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
   const [isLikeLoading, setIsLikeLoading] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
   const [comments, setComments] = useState<CommentWithAuthor[]>([]);
   const [showComments, setShowComments] = useState(false);
   const [newComment, setNewComment] = useState("");
@@ -35,19 +37,26 @@ export function FeedPost({ post, userId }: FeedPostProps) {
     const supabase = createClient();
 
     const fetchData = async () => {
-      const [likesResult, commentsResult] = await Promise.all([
+      const isOtherUser = !!userId && userId !== post.user_id;
+
+      const [likesResult, commentsResult, followResult] = await Promise.all([
         supabase.from("likes").select("id, user_id").eq("post_id", post.id),
         supabase
           .from("comments")
           .select("id, post_id, user_id, content, created_at, profiles(username, display_name)")
           .eq("post_id", post.id)
           .order("created_at", { ascending: true }),
+        isOtherUser
+          ? supabase.from("follows").select("id").eq("follower_id", userId!).eq("following_id", post.user_id).maybeSingle()
+          : Promise.resolve({ data: null }),
       ]);
 
       if (likesResult.data) {
         setLikeCount(likesResult.data.length);
         setIsLiked(!!userId && likesResult.data.some((l) => l.user_id === userId));
       }
+
+      if (followResult.data) setIsFollowing(true);
 
       if (commentsResult.data) {
         const mapped = commentsResult.data.map((c: any) => ({
@@ -83,6 +92,20 @@ export function FeedPost({ post, userId }: FeedPostProps) {
     }
 
     setIsLikeLoading(false);
+  };
+
+  const handleFollowToggle = async () => {
+    if (!userId || isFollowLoading) return;
+    setIsFollowLoading(true);
+    const supabase = createClient();
+    if (isFollowing) {
+      setIsFollowing(false);
+      await supabase.from("follows").delete().eq("follower_id", userId).eq("following_id", post.user_id);
+    } else {
+      setIsFollowing(true);
+      await supabase.from("follows").insert({ follower_id: userId, following_id: post.user_id });
+    }
+    setIsFollowLoading(false);
   };
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
@@ -139,12 +162,37 @@ export function FeedPost({ post, userId }: FeedPostProps) {
           {post.display_name.charAt(0).toUpperCase()}
         </div>
         <div className="flex flex-col">
-          <span className="text-sm font-semibold">{post.display_name}</span>
-          <span className="text-xs text-muted-foreground">@{post.username}</span>
+          <a
+            href={`/profile/${post.username}`}
+            className="text-sm font-semibold hover:underline underline-offset-2"
+          >
+            {post.display_name}
+          </a>
+          <a
+            href={`/profile/${post.username}`}
+            className="text-xs text-muted-foreground hover:underline underline-offset-2"
+          >
+            @{post.username}
+          </a>
         </div>
-        <span className="ml-auto text-xs text-muted-foreground">
-          {formatRelativeTime(post.created_at)}
-        </span>
+        <div className="ml-auto flex items-center gap-2">
+          {userId && userId !== post.user_id && (
+            <button
+              onClick={handleFollowToggle}
+              disabled={isFollowLoading}
+              className={`text-xs px-2 py-0.5 rounded-full border transition-colors disabled:opacity-40 ${
+                isFollowing
+                  ? "border-muted-foreground text-muted-foreground hover:border-red-400 hover:text-red-400"
+                  : "border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+              }`}
+            >
+              {isFollowing ? "Following" : "Follow"}
+            </button>
+          )}
+          <span className="text-xs text-muted-foreground" suppressHydrationWarning>
+            {formatRelativeTime(post.created_at)}
+          </span>
+        </div>
       </div>
 
       {/* Content */}
