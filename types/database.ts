@@ -92,6 +92,26 @@ export interface Database {
 // VALIDATION CONSTRAINTS (from schema)
 // =====================================================
 
+export interface Like {
+  id: string;
+  post_id: string;
+  user_id: string;
+  created_at: string;
+}
+
+export interface Comment {
+  id: string;
+  post_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+}
+
+export interface CommentWithAuthor extends Comment {
+  username: string;
+  display_name: string;
+}
+
 export const VALIDATION = {
   username: {
     minLength: 3,
@@ -112,5 +132,10 @@ export const VALIDATION = {
     minLength: 1,
     maxLength: 500,
     errorMessage: 'Post must be 1-500 characters',
+  },
+  postComment: {
+    minLength: 1,
+    maxLength: 280,
+    errorMessage: 'Comment must be 1-280 characters',
   },
 } as const;

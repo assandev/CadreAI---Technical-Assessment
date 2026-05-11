@@ -90,7 +90,7 @@ export function Feed({ userId, hasProfile }: FeedProps) {
       ) : (
         <div className="flex flex-col gap-3">
           {posts.map((post) => (
-            <FeedPost key={post.id} post={post} />
+            <FeedPost key={post.id} post={post} userId={userId} />
           ))}
         </div>
       )}

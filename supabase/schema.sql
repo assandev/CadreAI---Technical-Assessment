@@ -187,11 +187,61 @@ COMMENT ON VIEW public.feed_with_authors IS 'Feed posts joined with author profi
 GRANT SELECT ON public.feed_with_authors TO authenticated, anon;
 
 -- =====================================================
--- INITIAL SETUP COMPLETE
+-- TABLE: likes
 -- =====================================================
--- Next steps:
--- 1. Run this schema in Supabase SQL Editor
--- 2. Verify tables and policies are created
--- 3. Test with anon and authenticated roles
--- 4. Implement frontend queries using the data contracts
+
+CREATE TABLE IF NOT EXISTS public.likes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id UUID NOT NULL REFERENCES public.posts(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  CONSTRAINT likes_unique UNIQUE (post_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS likes_post_id_idx ON public.likes(post_id);
+CREATE INDEX IF NOT EXISTS likes_user_id_idx ON public.likes(user_id);
+
+ALTER TABLE public.likes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "likes_select_public"
+  ON public.likes FOR SELECT USING (true);
+
+CREATE POLICY "likes_insert_own"
+  ON public.likes FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "likes_delete_own"
+  ON public.likes FOR DELETE TO authenticated
+  USING (auth.uid() = user_id);
+
+-- =====================================================
+-- TABLE: comments
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS public.comments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id UUID NOT NULL REFERENCES public.posts(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  CONSTRAINT comment_content_not_empty CHECK (char_length(trim(content)) > 0),
+  CONSTRAINT comment_content_length CHECK (char_length(content) <= 280)
+);
+
+CREATE INDEX IF NOT EXISTS comments_post_id_idx ON public.comments(post_id);
+CREATE INDEX IF NOT EXISTS comments_created_at_idx ON public.comments(created_at ASC);
+
+ALTER TABLE public.comments ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "comments_select_public"
+  ON public.comments FOR SELECT USING (true);
+
+CREATE POLICY "comments_insert_own"
+  ON public.comments FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+-- =====================================================
+-- INITIAL SETUP COMPLETE
 -- =====================================================
